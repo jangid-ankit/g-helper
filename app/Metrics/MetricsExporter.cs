@@ -8,8 +8,14 @@ namespace GHelper.Metrics
     /// Records hardware sensor metrics to a timestamped CSV file at 1-second intervals.
     /// Recording survives settings-panel close; it stops only when explicitly toggled off
     /// or when the application exits.
-    /// 
+    ///
     /// Output location: Documents\GHelper\metrics_YYYY-MM-DD_HH-mm-ss.csv
+    ///
+    /// Time columns:
+    ///   Elapsed_s   – seconds since recording started (0.000, 1.003, 2.001 …).
+    ///                 Use this as the X-axis in Excel charts.
+    ///   WallClock   – absolute system-clock time at each sample, kept for reference
+    ///                 so you know when in the day the session occurred.
     /// </summary>
     public static class MetricsExporter
     {
@@ -30,12 +36,19 @@ namespace GHelper.Metrics
         private static StreamWriter? _writer;
         private static string? _currentFilePath;
 
+        /// <summary>
+        /// The exact moment StartRecording() was called.
+        /// All Elapsed_s values are (now - _sessionStart).TotalSeconds.
+        /// </summary>
+        private static DateTimeOffset _sessionStart;
+
         private static readonly object _lock = new();
 
         // ── CSV column definitions ────────────────────────────────────────────────────
 
-        private static readonly string CsvHeader =
-            "Timestamp," +
+        private const string CsvHeader =
+            "Elapsed_s," +
+            "WallClock," +
             "CPU_Temp_C," +
             "GPU_Temp_C," +
             "CPU_Fan_RPM," +
@@ -53,8 +66,9 @@ namespace GHelper.Metrics
         // ── Public API ────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Starts a new recording session. Creates a fresh CSV file and begins
-        /// writing a row every second. No-op if already recording.
+        /// Starts a new recording session. Creates a fresh CSV file, writes a
+        /// metadata comment with the session start time, then begins writing a
+        /// row every second. No-op if already recording.
         /// </summary>
         public static void StartRecording()
         {
@@ -64,7 +78,8 @@ namespace GHelper.Metrics
 
                 try
                 {
-                    _currentFilePath = BuildFilePath();
+                    _sessionStart = DateTimeOffset.Now;
+                    _currentFilePath = BuildFilePath(_sessionStart);
                     Directory.CreateDirectory(Path.GetDirectoryName(_currentFilePath)!);
 
                     // Keep file open for the duration; UTF-8 without BOM, auto-flush every row.
@@ -72,6 +87,13 @@ namespace GHelper.Metrics
                     {
                         AutoFlush = true
                     };
+
+                    // Human-readable session header so the file is self-documenting.
+                    _writer.WriteLine(
+                        $"# GHelper metrics — session started {_sessionStart:yyyy-MM-dd HH:mm:ss zzz}");
+                    _writer.WriteLine(
+                        "# Elapsed_s is seconds since session start (use as X-axis). " +
+                        "WallClock is absolute local time for reference.");
                     _writer.WriteLine(CsvHeader);
 
                     // Fire immediately (dueTime=0) then every 1 000 ms.
@@ -144,28 +166,37 @@ namespace GHelper.Metrics
 
         private static string BuildRow()
         {
-            // Snapshot every public field on HardwareControl atomically from this thread.
-            // These are simple value-type reads — no locking needed on the source.
-            string timestamp  = DateTimeOffset.Now.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture);
-            string cpuTemp    = FormatF(HardwareControl.cpuTemp);
-            string gpuTemp    = FormatF(HardwareControl.gpuTemp);
-            string cpuFanRpm  = FormatI(HardwareControl.cpuFanRPM);
-            string gpuFanRpm  = FormatI(HardwareControl.gpuFanRPM);
-            string cpuLoad    = FormatI(HardwareControl.cpuUsage);
-            string gpuLoad    = FormatI(HardwareControl.gpuUsage);
-            string cpuPower   = FormatF(HardwareControl.cpuPower);
-            string gpuPower   = FormatF(HardwareControl.gpuPower);
-            string ramMb      = FormatI(HardwareControl.ramUsedMb);
-            string ramPct     = FormatI(HardwareControl.ramUsage);
-            string vramMb     = FormatI(HardwareControl.vramUsedMb);
-            string battRate   = FormatD(HardwareControl.batteryRate);
-            string battPct    = HardwareControl.batteryCapacity >= 0
-                                    ? Math.Round(HardwareControl.batteryCapacity, 1)
-                                          .ToString(CultureInfo.InvariantCulture)
-                                    : string.Empty;
+            // Capture wall-clock once so both time columns reflect the same instant.
+            DateTimeOffset now = DateTimeOffset.Now;
+
+            // Elapsed_s: seconds since the session started, 3 decimal places (ms precision).
+            string elapsedS  = (now - _sessionStart).TotalSeconds
+                                   .ToString("F3", CultureInfo.InvariantCulture);
+
+            // WallClock: ISO-like local time, kept as reference only (not for charting).
+            string wallClock = now.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture);
+
+            // Snapshot hardware fields — simple value-type reads, no extra locking needed.
+            string cpuTemp   = FormatF(HardwareControl.cpuTemp);
+            string gpuTemp   = FormatF(HardwareControl.gpuTemp);
+            string cpuFanRpm = FormatI(HardwareControl.cpuFanRPM);
+            string gpuFanRpm = FormatI(HardwareControl.gpuFanRPM);
+            string cpuLoad   = FormatI(HardwareControl.cpuUsage);
+            string gpuLoad   = FormatI(HardwareControl.gpuUsage);
+            string cpuPower  = FormatF(HardwareControl.cpuPower);
+            string gpuPower  = FormatF(HardwareControl.gpuPower);
+            string ramMb     = FormatI(HardwareControl.ramUsedMb);
+            string ramPct    = FormatI(HardwareControl.ramUsage);
+            string vramMb    = FormatI(HardwareControl.vramUsedMb);
+            string battRate  = FormatD(HardwareControl.batteryRate);
+            string battPct   = HardwareControl.batteryCapacity >= 0
+                                   ? Math.Round(HardwareControl.batteryCapacity, 1)
+                                         .ToString(CultureInfo.InvariantCulture)
+                                   : string.Empty;
 
             return string.Join(",",
-                timestamp, cpuTemp, gpuTemp,
+                elapsedS, wallClock,
+                cpuTemp, gpuTemp,
                 cpuFanRpm, gpuFanRpm,
                 cpuLoad, gpuLoad,
                 cpuPower, gpuPower,
@@ -175,12 +206,12 @@ namespace GHelper.Metrics
 
         // ── Helpers ────────────────────────────────────────────────────────────────────
 
-        private static string BuildFilePath()
+        private static string BuildFilePath(DateTimeOffset sessionStart)
         {
             string dir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                 "GHelper");
-            string name = $"metrics_{DateTimeOffset.Now:yyyy-MM-dd_HH-mm-ss}.csv";
+            string name = $"metrics_{sessionStart:yyyy-MM-dd_HH-mm-ss}.csv";
             return Path.Combine(dir, name);
         }
 
@@ -209,8 +240,8 @@ namespace GHelper.Metrics
 
         // ── Null-safe formatters (empty string = missing data in CSV) ─────────────────
 
-        private static string FormatF(float? v)   => v.HasValue ? v.Value.ToString("F1", CultureInfo.InvariantCulture) : string.Empty;
-        private static string FormatI(int? v)      => v.HasValue ? v.Value.ToString(CultureInfo.InvariantCulture) : string.Empty;
-        private static string FormatD(decimal? v)  => v.HasValue ? Math.Round(v.Value, 2).ToString(CultureInfo.InvariantCulture) : string.Empty;
+        private static string FormatF(float? v)  => v.HasValue ? v.Value.ToString("F1", CultureInfo.InvariantCulture) : string.Empty;
+        private static string FormatI(int? v)     => v.HasValue ? v.Value.ToString(CultureInfo.InvariantCulture) : string.Empty;
+        private static string FormatD(decimal? v) => v.HasValue ? Math.Round(v.Value, 2).ToString(CultureInfo.InvariantCulture) : string.Empty;
     }
 }
