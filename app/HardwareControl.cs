@@ -352,7 +352,7 @@ public static class HardwareControl
             }
         }
 
-        if (Math.Abs(now - _lastBatteryRead) < 5000)
+        if (Math.Abs(now - _lastBatteryRead) < 1000)
         {
             FormatBatteryCharge();
             return;
