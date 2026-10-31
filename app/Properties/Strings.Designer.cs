@@ -3049,5 +3049,41 @@ namespace GHelper.Properties {
                 return ResourceManager.GetString("Background", resourceCulture);
             }
         }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Record Metrics.
+        /// </summary>
+        internal static string RecordMetrics {
+            get {
+                return ResourceManager.GetString("RecordMetrics", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Stop Recording.
+        /// </summary>
+        internal static string StopRecording {
+            get {
+                return ResourceManager.GetString("StopRecording", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Recording to.
+        /// </summary>
+        internal static string RecordingTo {
+            get {
+                return ResourceManager.GetString("RecordingTo", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Record hardware metrics to a CSV file.
+        /// </summary>
+        internal static string RecordMetricsTooltip {
+            get {
+                return ResourceManager.GetString("RecordMetricsTooltip", resourceCulture);
+            }
+        }
     }
 }

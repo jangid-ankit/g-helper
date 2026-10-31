@@ -7,6 +7,7 @@ using GHelper.Fan;
 using GHelper.Gpu;
 using GHelper.Helpers;
 using GHelper.Input;
+using GHelper.Metrics;
 using GHelper.Mode;
 using GHelper.Peripherals;
 using GHelper.Peripherals.Headset;
@@ -39,6 +40,7 @@ namespace GHelper
         public static System.Timers.Timer sensorTimer = default!;
         private static readonly bool sensorsAlways = AppConfig.Is("sensors_always");
         private readonly System.Windows.Forms.Timer batteryTimer = new() { Interval = 200 };
+        private RButton buttonRecordMetrics = default!;
 
         public Matrix? matrixForm;
         public Slash? slashForm;
@@ -296,6 +298,30 @@ namespace GHelper
 
             labelVisual.Click += LabelVisual_Click;
             labelCharge.Click += LabelCharge_Click;
+
+            // ── Metrics recording button (added programmatically to panelStartup) ───
+            buttonRecordMetrics = new RButton
+            {
+                Text = Properties.Strings.RecordMetrics,
+                Dock = DockStyle.Left,
+                Size = new Size(140, 50),
+                Secondary = true,
+                Borderless = true,
+                BorderRadius = 2,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = SystemColors.ControlLight,
+                ForeColor = SystemColors.ControlDark,
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                Margin = new Padding(0),
+                TabIndex = 50,
+                Name = "buttonRecordMetrics",
+                AccessibleName = "Record Metrics"
+            };
+            buttonRecordMetrics.FlatAppearance.BorderSize = 0;
+            buttonRecordMetrics.Click += ButtonRecordMetrics_Click;
+            panelStartup.Controls.Add(buttonRecordMetrics);
+
+            MetricsExporter.RecordingStateChanged += OnMetricsRecordingStateChanged;
 
             donateControl = new DonateControl(this, buttonDonate);
             donateControl.Init();
@@ -668,6 +694,39 @@ namespace GHelper
         {
             batteryFullMouseOver = true;
             labelCharge.Text = Properties.Strings.BatteryLimitFull;
+        }
+
+        // ── Metrics recording ─────────────────────────────────────────────────────────
+
+        private void ButtonRecordMetrics_Click(object? sender, EventArgs e)
+        {
+            MetricsExporter.Toggle();
+        }
+
+        /// <summary>
+        /// Called on the UI thread by MetricsExporter when recording starts or stops.
+        /// Updates the button's visual state and tooltip.
+        /// </summary>
+        private void OnMetricsRecordingStateChanged(bool isRecording)
+        {
+            if (isRecording)
+            {
+                buttonRecordMetrics.Text = Properties.Strings.StopRecording;
+                buttonRecordMetrics.Activated = true;
+                buttonRecordMetrics.BackColor = SystemColors.ControlDark;
+                buttonRecordMetrics.ForeColor = SystemColors.ControlLightLight;
+                toolTip.SetToolTip(buttonRecordMetrics,
+                    Properties.Strings.RecordingTo + " " + MetricsExporter.CurrentFilePath);
+            }
+            else
+            {
+                buttonRecordMetrics.Text = Properties.Strings.RecordMetrics;
+                buttonRecordMetrics.Activated = false;
+                buttonRecordMetrics.BackColor = SystemColors.ControlLight;
+                buttonRecordMetrics.ForeColor = SystemColors.ControlDark;
+                toolTip.SetToolTip(buttonRecordMetrics,
+                    Properties.Strings.RecordMetricsTooltip);
+            }
         }
 
         private void SettingsForm_Resize(object? sender, EventArgs e)

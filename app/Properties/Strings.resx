@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
   <!-- 
     Microsoft ResX Schema 
@@ -606,7 +606,7 @@ Do you still want to continue?</value>
     <value>Date Format</value>
   </data>
   <data name="MatrixFlip" xml:space="preserve">
-    <value>Rotate 180°</value>
+    <value>Rotate 180Â°</value>
   </data>
   <data name="MaxRefreshTooltip" xml:space="preserve">
     <value>Max refresh rate for lower latency</value>
@@ -1121,4 +1121,15 @@ from heating up the sleeping laptop and draining the battery.</value>
   <data name="Background" xml:space="preserve">
     <value>Back</value>
   </data>
-</root>
+  <data name="RecordMetrics" xml:space="preserve">
+    <value>Record Metrics</value>
+  </data>
+  <data name="StopRecording" xml:space="preserve">
+    <value>Stop Recording</value>
+  </data>
+  <data name="RecordingTo" xml:space="preserve">
+    <value>Recording to</value>
+  </data>
+  <data name="RecordMetricsTooltip" xml:space="preserve">
+    <value>Record hardware metrics (CPU/GPU temp, fans, power, battery) to a CSV file</value>
+  </data></root>

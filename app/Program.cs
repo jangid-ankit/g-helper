@@ -1,9 +1,10 @@
-using GHelper.Ally;
+﻿using GHelper.Ally;
 using GHelper.Battery;
 using GHelper.Display;
 using GHelper.Gpu;
 using GHelper.Helpers;
 using GHelper.Input;
+using GHelper.Metrics;
 using GHelper.Mode;
 using GHelper.Overlay;
 using GHelper.Peripherals;
@@ -474,6 +475,7 @@ namespace GHelper
                 trayIcon.Dispose();
             }
 
+            MetricsExporter.StopRecording();
             PeripheralsProvider.UnregisterForDeviceEvents();
             clamshellControl.UnregisterDisplayEvents();
             NativeMethods.UnregisterPowerSettingNotification(unRegPowerNotify);
